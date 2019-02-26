@@ -285,6 +285,32 @@ func (p *Config) WithFallback(fallback *Config) *Config {
 	return mergedConfig
 }
 
+func (p *Config) Combine(resource *Config) *Config {
+	if resource == p {
+		panic("Config can not have itself as fallback")
+	}
+
+	if resource == nil {
+		return p
+	}
+
+	mergedRoot := p.root.GetObject().CombineImmutable(resource.root.GetObject())
+	newRoot := hocon.NewHoconValue()
+
+	newRoot.AppendValue(mergedRoot)
+
+	mergedConfig := &Config{root: newRoot}
+	return mergedConfig
+}
+
+func (p *Config) Replace(resource *Config) {
+	if resource == p {
+		panic("Config can not have itself as fallback")
+	}
+
+	p.root.GetObject().Combine(resource.root.GetObject())
+}
+
 func (p *Config) HasPath(path string) bool {
 	return p.GetNode(path) != nil
 }

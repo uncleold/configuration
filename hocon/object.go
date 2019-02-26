@@ -117,17 +117,16 @@ func (p *HoconObject) Merge(other *HoconObject) {
 }
 
 func (p *HoconObject) MergeImmutable(other *HoconObject) *HoconObject {
-	thisValues := map[string]*HoconValue{}
+	thisValues := make(map[string]*HoconValue)
+	thisKeys := make([]string, 0, len(p.keys))
+	resource := p.items
 	otherKeys := other.keys
-
-	var thisKeys []string
-
 	otherItems := other.items
 
 	for _, otherkey := range otherKeys {
 		otherValue := otherItems[otherkey]
 
-		if thisValue, exist := thisValues[otherkey]; exist {
+		if thisValue, exist := resource[otherkey]; exist {
 
 			if thisValue.IsObject() && otherValue.IsObject() {
 
@@ -143,6 +142,60 @@ func (p *HoconObject) MergeImmutable(other *HoconObject) *HoconObject {
 		}
 	}
 
+	return &HoconObject{items: thisValues, keys: thisKeys}
+}
+
+func (p *HoconObject) Combine(other *HoconObject) {
+	thisValues := p.items
+	otherItems := other.items
+
+	otherKeys := other.keys
+
+	for _, otherKey := range otherKeys {
+		otherValue := otherItems[otherKey]
+
+		if thisValue, exist := thisValues[otherKey]; exist {
+			if thisValue.IsObject() && otherValue.IsObject() {
+				thisValue.GetObject().Combine(otherValue.GetObject())
+			} else if otherValue.values != nil {
+				thisValue.values = otherValue.values
+			}
+		} else {
+			p.items[otherKey] = otherValue
+			p.keys = append(p.keys, otherKey)
+		}
+	}
+}
+
+func (p *HoconObject) CombineImmutable(other *HoconObject) *HoconObject {
+	thisValues := make(map[string]*HoconValue)
+	thisKeys := make([]string, 0, len(p.keys))
+	resource := p.items
+	otherKeys := other.keys
+	otherItems := other.items
+
+	for _, otherKey := range otherKeys {
+		otherValue := otherItems[otherKey]
+
+		if thisValue, exist := resource[otherKey]; exist {
+
+			if thisValue.IsObject() && otherValue.IsObject() {
+
+				mergedObject := thisValue.GetObject().CombineImmutable(otherValue.GetObject())
+				mergedValue := NewHoconValue()
+
+				mergedValue.AppendValue(mergedObject)
+				thisValues[otherKey] = mergedValue
+			} else if otherValue.values != nil {
+				thisValues[otherKey] = &HoconValue{values: otherValue.values}
+			} else {
+				thisValues[otherKey] = &HoconValue{values: thisValue.values}
+			}
+		} else {
+			thisValues[otherKey] = &HoconValue{values: otherValue.values}
+			thisKeys = append(thisKeys, otherKey)
+		}
+	}
 	return &HoconObject{items: thisValues, keys: thisKeys}
 }
 
